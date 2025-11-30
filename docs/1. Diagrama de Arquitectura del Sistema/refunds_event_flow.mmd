@@ -1,0 +1,48 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Gateway as API Gateway
+    participant R_API as Refunds API
+    participant R_Service as Refunds Service
+    participant Orch as Orchestrator
+    participant Wallet as Wallets Service
+    participant Notif as Notifications Service
+    participant Metrics as Metrics Service
+
+    Note over Client, R_Service: Fase Sincrónica: Validación y Persistencia
+    Client->>Gateway: POST /refunds
+    Gateway->>R_API: Auth & Forward
+    R_API->>R_Service: Create Refund
+    
+    alt Create Refund Failure
+        R_Service->>R_API: Return HTTP error
+        R_API->>Client: Finish with error
+    end
+
+    R_Service->>R_Service: Generate ID, set PENDING status save on DB
+    R_Service-->>Orch: Event: refund - created
+    R_Service->>R_API: Return refund_id
+    R_API->>Client: 202 Accepted (Processing)
+    
+    %% --- FASE ORQUESTACIÓN ASINCRÓNICA ---
+    Orch-->>Payment Gateway: orchestrator.gatewat - init_refund
+   Payment Gateway-->>Payment Gateway: callback from external provider
+   Payment Gateway->>Payment Gateway: Update status on DB
+   Payment Gateway-->>Orch: Event: gateway - refund - completed
+    
+    Orch-->>Wallet: orchestrator.wallet - credit
+  
+    alt Wallet Adjustment Fails
+        Wallet-->>Metrics: Event: metric.wallet_credit_failure
+        Wallet-->>Orch: Event: wallet - credit_failure
+        Orch-->>R_Service: Event: orchestrator.refund - update_status - FAILED
+        Orch-->>Notif: Event: orchestrator.notify - refund_failure
+    else Wallet Adjustment Success
+        Wallet->Wallet: Update funds on DB
+        Wallet-->>Orch: Event: wallet - credit
+        Orch-->>R_Service: Event: orchestrator.refund - update_status - COMPLETED
+                R_Service->R_Service: Update status on DB
+                R_Service-->>Orch: refund - completed/failured
+                Orch-->>Notif: Event: orchestrator.notify - refund_success
+                R_Service-->>Metrics: Event: metric.refund_success
+    end

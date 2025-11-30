@@ -1,0 +1,73 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Gateway as API Gateway
+    participant P_API as Payments API
+    participant P_Service as Payments Service
+    participant Orch as Orchestrator
+    participant Wallet as Wallets Service
+    participant Ext_Gate as Payments Gateway Service
+    participant Notif as Notifications Service
+    participant Metrics as Metrics Service
+
+    %% --- FASE 1: INICIO SINCRÓNICO (SOLICITUD) ---
+    Note over Client, P_Service: Fase Sincrónica: Validación y Persistencia
+    Client->>Gateway: POST /payments
+    Gateway->>P_API: Auth & Forward
+    P_API->>P_Service: Create Payment
+    
+    alt Create Payment Failure
+        P_Service->>P_API: Return HTTP error
+        P_API->>Client: Finish with error
+    end
+
+    P_Service->>P_Service: Generate ID, set PENDING status save on DB
+    P_Service-->>Orch: Event: payment - created
+    P_Service->>P_API: Return Payment_ID
+    P_API->>Client: 202 Accepted (Processing)
+    
+    %% --- FASE 2: ORQUESTACIÓN ASINCRÓNICA ---
+    Orch-->>Wallet: Event: orchestrator.wallet - hold_funds
+    
+    alt Wallet hold funds fialure
+        Wallet-->>Metrics: Event: metric.wallet_hold_funds_failure
+        Wallet-->>Orch: Event: wallet - hold_funds_failure
+        Orch-->>P_Service: Event: orchestrator.payment - update_status - FAILED
+        Orch-->>Notif: Event: orchestrator.notify - payment_failure
+    else Wallet hold funds
+        Wallet->Wallet: Update funds on DB
+        Wallet-->>Orch: Event: wallet.hold_funds
+        Orch->>Ext_Gate: Event: orchestrator.gateway - authorize
+        alt Gateway Authorization failure
+            Ext_Gate-->>Orch: Event: gateway - unauthorize
+            Ext_Gate-->>Metrics: Event: metric.gateway_unauthorize
+            Orch->>Wallet: Event: orchestrator.wallet - release_funds
+            Wallet->Wallet: Update funds on DB
+            Wallet-->>Orch: Event: wallet - funds_released
+           Orch-->>P_Service: Event: orchestrator.payment - update_status - FAILED
+          Orch-->>Notif: Event: orchestrator.notify - payment_failure
+        else Gateway Authorized
+            Ext_Gate->Ext_Gate: Update status on DB
+            Ext_Gate-->>Orch: Event: gateway - authorized
+            Orch-->>Wallet: Event: orchestrator.wallet - debit
+            alt Debit Failed
+                Wallet->Wallet: Update funds on DB
+                Wallet-->>Orch: Event: wallet - debit_failure
+                Wallet-->>Metrics: Event: metric.wallet_debit_failure
+                Orch->>Ext_Gate: Event: orchestrator.gateway - refund
+                Orch->>Wallet: Event: wallet - release_funds
+                Orch-->>P_Service: Event: orchestrator.payment - update_status - FAILED
+                
+          Orch-->>Notif: Event: orchestrator.notify - payment_failure
+                
+            else Debit Success (Happy Path)
+                Wallet->Wallet: Update funds on DB
+                Wallet-->>Orch: Event: wallet - debit_funds
+                Orch-->>P_Service: Event: orchestrator.payment - update_status - COMPLETED
+                P_Service->P_Service: Update status on DB
+                P_Service-->>Orch: Event payment - completed/failed
+                Orch-->>Notif: Event: orchestrator.notify - payment_success
+                Orch-->>Metrics: Event: metric.payment_success
+            end
+        end
+    end
