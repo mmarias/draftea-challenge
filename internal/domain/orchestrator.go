@@ -40,6 +40,7 @@ type PaymentCreatedEvent struct {
 
 // Event from Gateway Service
 type GatewayAuthorizedEvent struct {
+	CommandEvent
 	PaymentID string  `json:"payment_id"`
 	WalletID  string  `json:"wallet_id"`
 	Amount    float64 `json:"amount"`
@@ -48,6 +49,7 @@ type GatewayAuthorizedEvent struct {
 
 // Event from Gateway Service on failure
 type GatewayAuthorizationFailedEvent struct {
+	CommandEvent
 	PaymentID string  `json:"payment_id"`
 	WalletID  string  `json:"wallet_id"`
 	Amount    float64 `json:"amount"`
