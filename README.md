@@ -42,5 +42,6 @@ Se simula el consumo completo p2p del procesamiento de un pago exitoso.
 
 **Rendimiento General y Observabilidad:**
 
-*   **Trazado Distribuido y Monitorización:** Integrar el trazado distribuido (por ejemplo, OpenTelemetry, Jaeger) para una visibilidad de extremo a extremo de los flujos de transacciones entre servicios. Establecer una monitorización y alertas exhaustivas para métricas clave (latencia, tasas de error, profundidades de cola, utilización de recursos).
-*   **Manejo Robusto de Errores:** Implementar mecanismos de reintento robustos con retroceso exponencial y cortacircuitos (circuit breakers) para mejorar la resiliencia del sistema frente a fallos transitorios y prevenir errores en cascada.
+*   **Trazado Distribuido y Monitorización:** Integrar el trazado distribuido OpenTelemetry, Jaeger para una visibilidad de extremo a extremo de los flujos de transacciones entre servicios. Establecer una monitorización y alertas exhaustivas para métricas clave (latencia, tasas de error, profundidades de cola, utilización de recursos).
+*   Implementación de prometheus para popular métricas e integrar todo con Grafana.
+*   **Manejo Robusto de Errores:** Implementar mecanismos de reintento, circuit breakers y múltiples proveedores en Payments Gateway para mejorar la resiliencia del sistema frente a fallos transitorios y prevenir errores en cascada.
