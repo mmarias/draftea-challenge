@@ -34,9 +34,11 @@ Se simula el consumo completo p2p del procesamiento de un pago exitoso.
 1.  **API Gateway (`cmd/api`):**
     *   **Consideraciones:** Implementar escalado horizontal (múltiples instancias detrás de un balanceador de carga), manejo eficiente de solicitudes no bloqueantes y limitación de tasas para gestionar un alto número de solicitudes concurrentes.
 2.  **Consumidores (`cmd/*_consumer`):**
-    *   **Consideraciones:** Escalar los consumidores horizontalmente para igualar las tasas de producción de eventos. Implementar escalado dinámico basado en la profundidad de la cola. Asegurar que toda la lógica del consumidor sea idempotente para manejar de forma segura los reintentos y evitar efectos secundarios.
+    *   **Consideraciones:** Escalar los consumidores horizontalmente y asegurar que toda la lógica del consumidor sea idempotente para manejar de forma segura los reintentos y evitar efectos secundarios.
 3.  **Memcache (`internal/infraestructure/memcache`):**
     *   **Consideraciones:** Para entornos distribuidos, migrar de una caché local en memoria a una solución de caché distribuida (por ejemplo, Redis, clúster de Memcached) para garantizar la consistencia y escalabilidad entre múltiples instancias de servicio.
+4. **Eventos**
+   *    **Consideraciones:** Se puede implementar event sourcing, con un DynamoDB, para almacenar los eventos fallidos o reconstruir, en forma de auditoría, cada uno de los steps SAGA.
 
 **Rendimiento General y Observabilidad:**
 
