@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -16,37 +17,23 @@ type UpdatePaymentStatusCommand interface {
 }
 
 type updatePaymentStatusCommand struct {
-	publisher  publisher.Client
-	repository domain.CommandRepository
+	publisher publisher.Client
 }
 
 func NewUpdatePaymentStatusCommand(
 	publisher publisher.Client,
-	repository domain.CommandRepository,
 ) *updatePaymentStatusCommand {
 	return &updatePaymentStatusCommand{
 		publisher,
-		repository,
 	}
 }
 
 func (c *updatePaymentStatusCommand) UpdateStatus(ctx context.Context, paymentId string, status domain.PaymentStatus) error {
 	traceID := uuid.NewString()
 
-	event := c.buildEventV1(traceID, paymentId, status)
+	b := c.buildEventV1(traceID, paymentId, status)
 
-	b, err := json.Marshal(event)
-	if err != nil {
-		_ = c.repository.Save(
-			ctx,
-			domain.CommandStatusFailed,
-			event.CommandEvent,
-			event.PaymentUpdateStatusEventPayload,
-		)
-		return err
-	}
-
-	err = retry.Do(
+	return retry.Do(
 		func() error {
 			return c.publisher.Publish(ctx, domain.TopicOrchestratorPayment, b)
 		},
@@ -55,21 +42,10 @@ func (c *updatePaymentStatusCommand) UpdateStatus(ctx context.Context, paymentId
 		retry.Delay(100*time.Millisecond),
 	)
 
-	if err != nil {
-		_ = c.repository.Save(
-			ctx,
-			domain.CommandStatusFailed,
-			event.CommandEvent,
-			event.PaymentUpdateStatusEventPayload,
-		)
-		return err
-	}
-
-	return nil
 }
 
-func (c *updatePaymentStatusCommand) buildEventV1(traceID, paymentId string, status domain.PaymentStatus) domain.PaymentUpdateStatusEvent {
-	return domain.PaymentUpdateStatusEvent{
+func (c *updatePaymentStatusCommand) buildEventV1(traceID, paymentId string, status domain.PaymentStatus) []byte {
+	event := domain.PaymentUpdateStatusEvent{
 		CommandEvent: domain.CommandEvent{
 			EventType:    domain.PaymentUpdateStatusEventType,
 			EventVersion: "1",
@@ -88,4 +64,11 @@ func (c *updatePaymentStatusCommand) buildEventV1(traceID, paymentId string, sta
 			Status:    status,
 		},
 	}
+
+	b, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("ERROR: Failed to marshal updatePaymentStatusCommand event: %v", err)
+	}
+
+	return b
 }

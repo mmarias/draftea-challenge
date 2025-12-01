@@ -7,7 +7,11 @@ import (
 )
 
 const (
-	TopicPaymentCreated = "payment.created"
+	TopicPaymentCreated   = "payment.created"
+	TopicPaymentCompleted = "payment.completed"
+
+	TopicMetrics           = "metrics"
+	MetricPaymentSuccess = "metric.payment_success"
 )
 
 type PaymentRepository interface {
@@ -33,6 +37,10 @@ const (
 	PaymentStatusFailed    PaymentStatus = "FAILED"
 	PaymentStatusCompleted PaymentStatus = "COMPLETED"
 )
+
+func (p *Payment) SetStatus(status PaymentStatus) {
+	p.Status = status
+}
 
 func (p *Payment) SetID() {
 	p.ID = uuid.NewString()

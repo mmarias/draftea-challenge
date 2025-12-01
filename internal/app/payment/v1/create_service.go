@@ -31,6 +31,7 @@ func (uc *createPaymentUseCase) Execute(ctx context.Context, pay domain.Payment)
 
 	pay.SetID()
 	pay.SetCreatedAt()
+	pay.SetStatus(domain.PaymentStatusPending)
 
 	err := uc.repository.Create(pay)
 	if err != nil {

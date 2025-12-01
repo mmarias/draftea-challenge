@@ -4,17 +4,6 @@ import (
 	"context"
 )
 
-type CommandStatus string
-
-const (
-	CommandStatusOk     CommandStatus = "ok"
-	CommandStatusFailed CommandStatus = "failed"
-)
-
-type CommandRepository interface {
-	Save(ctx context.Context, status CommandStatus, command CommandEvent, payload any) error
-}
-
 const (
 	TopicOrchestratorWallet       = "orchestrator.wallet"
 	TopicOrchestratorPayment      = "orchestrator.payment"
@@ -114,6 +103,15 @@ type NotifyUserEvent struct {
 type NotifyUserEventPayload struct {
 	PaymentID    string       `json:"payment_id"`
 	Notification Notification `json:"notification"`
+}
+
+type MetricEvent struct {
+	CommandEvent
+	MetricEventPayload `json:"payload"`
+}
+
+type MetricEventPayload struct {
+	Metric string `json:"metric"`
 }
 
 type PaymentCommands interface {
