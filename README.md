@@ -43,5 +43,12 @@ Se simula el consumo completo p2p del procesamiento de un pago exitoso.
 **Rendimiento General y Observabilidad:**
 
 *   **Trazado Distribuido y Monitorización:** Integrar el trazado distribuido OpenTelemetry, Jaeger para una visibilidad de extremo a extremo de los flujos de transacciones entre servicios. Establecer una monitorización y alertas exhaustivas para métricas clave (latencia, tasas de error, profundidades de cola, utilización de recursos).
-*   Implementación de prometheus para popular métricas e integrar todo con Grafana.
+*   **Métricas:** Implementación de prometheus para como colector de métricas.
+*   **Dashboards y Alertas**: Implementar Grafana para centralizar en un mismo lugar logs, trazas y métricas, como así también, generar alertas en base a las distintas fuentes de métricas, pudiendo ser:
+*   - Los diferentes componentes y servicios
+*   - Integrar datasource de CloudWatch para sacar métricas sobre:
+       - RDS
+       - DynamoDB
+       - SQS/SNS
+*   - Kubernetes (memory, cpu, cantidad de pods desplegados, versión de app corriendo)
 *   **Manejo Robusto de Errores:** Implementar mecanismos de reintento, circuit breakers y múltiples proveedores en Payments Gateway para mejorar la resiliencia del sistema frente a fallos transitorios y prevenir errores en cascada.
