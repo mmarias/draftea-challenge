@@ -18,55 +18,65 @@ func SetupSagaDispatcher(bus eventbus.Client, handler *OrchestratorSagaHandler) 
 			return
 		}
 
-		// Route event to the correct handler based on EventType
+		// Route events
 		switch genericEvent.EventType {
-		// Events consumed from other services
+		// Events that consume orchestrator from payment service
 		case domain.TopicPaymentCreated:
 			var ev domain.PaymentUpdateStatusEvent
 			json.Unmarshal(msg, &ev)
 			handler.HandlePaymentCreated(ctx, ev)
-		case "gateway.authorized":
-			var ev domain.GatewayAuthorizedEvent
-			json.Unmarshal(msg, &ev)
-			handler.HandleGatewayAuthorized(ctx, ev)
-		case "gateway.authorization_failed":
-			var ev domain.GatewayAuthorizationFailedEvent
-			json.Unmarshal(msg, &ev)
-			handler.HandleGatewayAuthorizationFailed(ctx, ev)
-
-		// Events from our own orchestrator commands (e.g., from wallet)
-		case "wallet.hold_funds":
-			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
-			handler.HandleFundsHeld(ctx, ev)
-		case "wallet.debit_funds":
-			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
-			handler.HandleFundsDebited(ctx, ev)
-		case "wallet.hold_funds_failed":
-			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
-			handler.HandleFundsHoldFailed(ctx, ev)
-		case "wallet.funds_released":
-			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
-			handler.HandleFundsReleased(ctx, ev)
-
 		case domain.TopicPaymentCompleted:
 			var ev domain.PaymentUpdateStatusEvent
 			json.Unmarshal(msg, &ev)
 			handler.HandlePaymentCompleted(ctx, ev)
+
+		// Events that consume orchestrator from gateway service
+		case domain.TopicGatewayAuthorized:
+			var ev domain.GatewayAuthorizedEvent
+			json.Unmarshal(msg, &ev)
+			handler.HandleGatewayAuthorized(ctx, ev)
+		case domain.TopicGatewayAuthorizationFailed:
+			var ev domain.GatewayAuthorizationFailedEvent
+			json.Unmarshal(msg, &ev)
+			handler.HandleGatewayAuthorizationFailed(ctx, ev)
+
+		// Events that consume orchestrator from wallet service
+		case domain.TopicWalletFunds:
+			var ev domain.WalletCommandEvent
+			json.Unmarshal(msg, &ev)
+			handler.HandleFundsHeld(ctx, ev)
+		case domain.TopicWalletDebitFunds:
+			var ev domain.WalletCommandEvent
+			json.Unmarshal(msg, &ev)
+			handler.HandleFundsDebited(ctx, ev)
+		case domain.TopicWalletHoldFundsFailed:
+			var ev domain.WalletCommandEvent
+			json.Unmarshal(msg, &ev)
+			handler.HandleFundsHoldFailed(ctx, ev)
+		case domain.TopicWalletFundsReleased:
+			var ev domain.WalletCommandEvent
+			json.Unmarshal(msg, &ev)
+			handler.HandleFundsReleased(ctx, ev)
 		}
 	}
 
 	// Subscribe the dispatcher to all topics the orchestrator listens to.
+	log.Printf("Subscribing to topic: %s", domain.TopicPaymentCreated)
 	bus.Subscribe(domain.TopicPaymentCreated, dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicOrchestratorWallet)
 	bus.Subscribe(domain.TopicOrchestratorWallet, dispatcher)
-	bus.Subscribe("gateway.authorized", dispatcher)
-	bus.Subscribe("gateway.authorization_failed", dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicGatewayAuthorized)
+	bus.Subscribe(domain.TopicGatewayAuthorized, dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicGatewayAuthorizationFailed)
+	bus.Subscribe(domain.TopicGatewayAuthorizationFailed, dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicPaymentCompleted)
 	bus.Subscribe(domain.TopicPaymentCompleted, dispatcher)
-	bus.Subscribe("wallet.hold_funds", dispatcher)
-	bus.Subscribe("wallet.debit_funds", dispatcher)
-	bus.Subscribe("wallet.hold_funds_failed", dispatcher)
-	bus.Subscribe("wallet.funds_released", dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicWalletFunds)
+	bus.Subscribe(domain.TopicWalletFunds, dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicWalletDebitFunds)
+	bus.Subscribe(domain.TopicWalletDebitFunds, dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicWalletHoldFundsFailed)
+	bus.Subscribe(domain.TopicWalletHoldFundsFailed, dispatcher)
+	log.Printf("Subscribing to topic: %s", domain.TopicWalletFundsReleased)
+	bus.Subscribe(domain.TopicWalletFundsReleased, dispatcher)
 }

@@ -77,6 +77,108 @@ func TestPaymentHandler_CreatePaymentHandler(t *testing.T) {
 			expectedResponseBody: "invalid request body\n",
 		},
 		{
+			name:          "missing wallet ID in request body",
+			idempotentKey: "test-key",
+			requestBody: PaymentRequest{
+				WalletID:  "",
+				ServiceID: "service-456",
+				Amount:    100,
+				Currency:  "USD",
+				Method:    "credit_card",
+			},
+			setupMocks: func(createPayment *MockCreatePayment, cache *MockCache) {
+				cache.On("SetNX", "payment.test-key").Return(nil)
+				cache.On("Delete", "payment.test-key").Return()
+			},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "missing wallet_id\n",
+		},
+		{
+			name:          "missing service ID in request body",
+			idempotentKey: "test-key",
+			requestBody: PaymentRequest{
+				WalletID:  "wallet-123",
+				ServiceID: "",
+				Amount:    100,
+				Currency:  "USD",
+				Method:    "credit_card",
+			},
+			setupMocks: func(createPayment *MockCreatePayment, cache *MockCache) {
+				cache.On("SetNX", "payment.test-key").Return(nil)
+				cache.On("Delete", "payment.test-key").Return()
+			},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "missing service_id\n",
+		},
+		{
+			name:          "invalid amount in request body (zero)",
+			idempotentKey: "test-key",
+			requestBody: PaymentRequest{
+				WalletID:  "wallet-123",
+				ServiceID: "service-456",
+				Amount:    0,
+				Currency:  "USD",
+				Method:    "credit_card",
+			},
+			setupMocks: func(createPayment *MockCreatePayment, cache *MockCache) {
+				cache.On("SetNX", "payment.test-key").Return(nil)
+				cache.On("Delete", "payment.test-key").Return()
+			},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "invalid amount\n",
+		},
+		{
+			name:          "invalid amount in request body (negative)",
+			idempotentKey: "test-key",
+			requestBody: PaymentRequest{
+				WalletID:  "wallet-123",
+				ServiceID: "service-456",
+				Amount:    -100,
+				Currency:  "USD",
+				Method:    "credit_card",
+			},
+			setupMocks: func(createPayment *MockCreatePayment, cache *MockCache) {
+				cache.On("SetNX", "payment.test-key").Return(nil)
+				cache.On("Delete", "payment.test-key").Return()
+			},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "invalid amount\n",
+		},
+		{
+			name:          "missing currency in request body",
+			idempotentKey: "test-key",
+			requestBody: PaymentRequest{
+				WalletID:  "wallet-123",
+				ServiceID: "service-456",
+				Amount:    100,
+				Currency:  "",
+				Method:    "credit_card",
+			},
+			setupMocks: func(createPayment *MockCreatePayment, cache *MockCache) {
+				cache.On("SetNX", "payment.test-key").Return(nil)
+				cache.On("Delete", "payment.test-key").Return()
+			},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "missing currency\n",
+		},
+		{
+			name:          "missing method in request body",
+			idempotentKey: "test-key",
+			requestBody: PaymentRequest{
+				WalletID:  "wallet-123",
+				ServiceID: "service-456",
+				Amount:    100,
+				Currency:  "USD",
+				Method:    "",
+			},
+			setupMocks: func(createPayment *MockCreatePayment, cache *MockCache) {
+				cache.On("SetNX", "payment.test-key").Return(nil)
+				cache.On("Delete", "payment.test-key").Return()
+			},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "missing method\n",
+		},
+		{
 			name:          "create payment fails",
 			idempotentKey: "test-key",
 			requestBody: PaymentRequest{

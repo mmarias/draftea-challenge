@@ -11,24 +11,6 @@ import (
 	"github.com/mmarias/golearn/internal/infraestructure/memcache"
 )
 
-type PaymentRequest struct {
-	WalletID  string  `json:"wallet_id"`
-	ServiceID string  `json:"service_id"`
-	Amount    float64 `json:"amount"`
-	Currency  string  `json:"currency"`
-	Method    string  `json:"method"`
-}
-
-func (t *PaymentRequest) ToDomain() domain.Payment {
-	return domain.Payment{
-		WalletID:  t.WalletID,
-		ServiceID: t.ServiceID,
-		Amount:    t.Amount,
-		Currency:  t.Currency,
-		Method:    t.Method,
-	}
-}
-
 type createPaymentImpl interface {
 	Execute(ctx context.Context, pay domain.Payment) (string, error)
 }
@@ -68,6 +50,11 @@ func (h *PaymentHandler) CreatePaymentHandler(w http.ResponseWriter, r *http.Req
 	var req PaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
