@@ -2,7 +2,8 @@ package publisher
 
 import (
 	"context"
-	"errors"
+
+	"github.com/mmarias/golearn/internal/infraestructure/eventbus"
 )
 
 type Client interface {
@@ -10,16 +11,15 @@ type Client interface {
 }
 
 type publisher struct {
+	bus eventbus.Client
 }
 
-func New() *publisher {
-	return &publisher{}
+func New(bus eventbus.Client) Client {
+	return &publisher{
+		bus: bus,
+	}
 }
 
 func (p *publisher) Publish(ctx context.Context, topic string, message []byte) error {
-	if message == nil {
-		return errors.New("message cannot be empty")
-	}
-
-	return nil
+	return p.bus.Publish(ctx, topic, message)
 }

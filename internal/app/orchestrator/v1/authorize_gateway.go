@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -16,37 +17,23 @@ type AuthorizeGatewayCommand interface {
 }
 
 type authorizeGatewayCommand struct {
-	publisher  publisher.Client
-	repository domain.CommandRepository
+	publisher publisher.Client
 }
 
 func NewAuthorizeGatewayCommand(
 	publisher publisher.Client,
-	repository domain.CommandRepository,
 ) *authorizeGatewayCommand {
 	return &authorizeGatewayCommand{
 		publisher,
-		repository,
 	}
 }
 
 func (c *authorizeGatewayCommand) Authorize(ctx context.Context, paymentId, walletId string, amount float64, currency, token string) error {
 	traceID := uuid.NewString()
 
-	event := c.buildEventV1(traceID, paymentId, walletId, amount, currency, token)
+	b := c.buildEventV1(traceID, paymentId, walletId, amount, currency, token)
 
-	b, err := json.Marshal(event)
-	if err != nil {
-		_ = c.repository.Save(
-			ctx,
-			domain.CommandStatusFailed,
-			event.CommandEvent,
-			event.WalletCommandEventPayload,
-		)
-		return err
-	}
-
-	err = retry.Do(
+	return retry.Do(
 		func() error {
 			return c.publisher.Publish(ctx, domain.TopicOrchestratorGateway, b)
 		},
@@ -54,22 +41,10 @@ func (c *authorizeGatewayCommand) Authorize(ctx context.Context, paymentId, wall
 		retry.DelayType(retry.BackOffDelay),
 		retry.Delay(100*time.Millisecond),
 	)
-
-	if err != nil {
-		_ = c.repository.Save(
-			ctx,
-			domain.CommandStatusFailed,
-			event.CommandEvent,
-			event.WalletCommandEventPayload,
-		)
-		return err
-	}
-
-	return nil
 }
 
-func (c *authorizeGatewayCommand) buildEventV1(traceID, paymentId, walletId string, amount float64, currency, token string) domain.WalletCommandEvent {
-	return domain.WalletCommandEvent{
+func (c *authorizeGatewayCommand) buildEventV1(traceID, paymentId, walletId string, amount float64, currency, token string) []byte {
+	event := domain.WalletCommandEvent{
 		CommandEvent: domain.CommandEvent{
 			EventType:    domain.AuthorizeGatewayEventType,
 			EventVersion: "1",
@@ -91,4 +66,11 @@ func (c *authorizeGatewayCommand) buildEventV1(traceID, paymentId, walletId stri
 			Token:     token,
 		},
 	}
+
+	b, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("ERROR: Failed to marshal authorizeGatewayCommand event: %v", err)
+
+	}
+	return b
 }

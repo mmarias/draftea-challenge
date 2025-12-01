@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -16,37 +17,23 @@ type NotifyUserCommand interface {
 }
 
 type notifyUserCommand struct {
-	publisher  publisher.Client
-	repository domain.CommandRepository
+	publisher publisher.Client
 }
 
 func NewNotifyUserCommand(
 	publisher publisher.Client,
-	repository domain.CommandRepository,
 ) *notifyUserCommand {
 	return &notifyUserCommand{
 		publisher,
-		repository,
 	}
 }
 
 func (c *notifyUserCommand) Notify(ctx context.Context, paymentId string, notificationType domain.Notification) error {
 	traceID := uuid.NewString()
 
-	event := c.buildEventV1(traceID, paymentId, notificationType)
+	b := c.buildEventV1(traceID, paymentId, notificationType)
 
-	b, err := json.Marshal(event)
-	if err != nil {
-		_ = c.repository.Save(
-			ctx,
-			domain.CommandStatusFailed,
-			event.CommandEvent,
-			event.NotifyUserEventPayload,
-		)
-		return err
-	}
-
-	err = retry.Do(
+	return retry.Do(
 		func() error {
 			return c.publisher.Publish(ctx, domain.TopicOrchestratorNotification, b)
 		},
@@ -54,22 +41,10 @@ func (c *notifyUserCommand) Notify(ctx context.Context, paymentId string, notifi
 		retry.DelayType(retry.BackOffDelay),
 		retry.Delay(100*time.Millisecond),
 	)
-
-	if err != nil {
-		_ = c.repository.Save(
-			ctx,
-			domain.CommandStatusFailed,
-			event.CommandEvent,
-			event.NotifyUserEventPayload,
-		)
-		return err
-	}
-
-	return nil
 }
 
-func (c *notifyUserCommand) buildEventV1(traceID, paymentId string, notificationType domain.Notification) domain.NotifyUserEvent {
-	return domain.NotifyUserEvent{
+func (c *notifyUserCommand) buildEventV1(traceID, paymentId string, notificationType domain.Notification) []byte {
+	event := domain.NotifyUserEvent{
 		CommandEvent: domain.CommandEvent{
 			EventType:    domain.NotifyUserEventType,
 			EventVersion: "1",
@@ -88,4 +63,11 @@ func (c *notifyUserCommand) buildEventV1(traceID, paymentId string, notification
 			Notification: notificationType,
 		},
 	}
+
+	b, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("ERROR: Failed to marshal notifyUserCommand event: %v", err)
+	}
+
+	return b
 }

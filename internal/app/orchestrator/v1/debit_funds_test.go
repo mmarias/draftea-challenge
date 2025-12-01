@@ -13,20 +13,19 @@ import (
 func TestDebitFundsCommand_Debit(t *testing.T) {
 	tests := []struct {
 		name          string
-		setupMocks    func(publisher *MockPublisher, repository *MockCommandRepository)
+		setupMocks    func(publisher *MockPublisher)
 		expectedError bool
 	}{
 		{
 			name: "publisher fails after retries",
-			setupMocks: func(publisher *MockPublisher, repository *MockCommandRepository) {
+			setupMocks: func(publisher *MockPublisher) {
 				publisher.On("Publish", mock.Anything, domain.TopicOrchestratorWallet, mock.Anything).Return(errors.New("publisher error")).Times(3)
-				repository.On("Save", mock.Anything, domain.CommandStatusFailed, mock.Anything, mock.Anything).Return(nil)
 			},
 			expectedError: true,
 		},
 		{
 			name: "publisher succeeds",
-			setupMocks: func(publisher *MockPublisher, repository *MockCommandRepository) {
+			setupMocks: func(publisher *MockPublisher) {
 				publisher.On("Publish", mock.Anything, domain.TopicOrchestratorWallet, mock.Anything).Return(nil).Once()
 			},
 			expectedError: false,
@@ -36,10 +35,9 @@ func TestDebitFundsCommand_Debit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			publisherMock := new(MockPublisher)
-			repositoryMock := new(MockCommandRepository)
-			tt.setupMocks(publisherMock, repositoryMock)
+			tt.setupMocks(publisherMock)
 
-			cmd := NewDebitFundsCommand(publisherMock, repositoryMock)
+			cmd := NewDebitFundsCommand(publisherMock)
 			err := cmd.Debit(context.Background(), "payment-123", "wallet-456", 100.0, "USD")
 
 			if tt.expectedError {
@@ -49,7 +47,6 @@ func TestDebitFundsCommand_Debit(t *testing.T) {
 			}
 
 			publisherMock.AssertExpectations(t)
-			repositoryMock.AssertExpectations(t)
 		})
 	}
 }
