@@ -23,60 +23,74 @@ func SetupSagaDispatcher(bus eventbus.Client, handler *OrchestratorSagaHandler) 
 		// Events that consume orchestrator from payment service
 		case domain.TopicPaymentCreated:
 			var ev domain.PaymentUpdateStatusEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal PaymentUpdateStatusEvent for %s: %v", domain.TopicPaymentCreated, err)
+				return
+			}
 			handler.HandlePaymentCreated(ctx, ev)
 		case domain.TopicPaymentCompleted:
 			var ev domain.PaymentUpdateStatusEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal PaymentUpdateStatusEvent for %s: %v", domain.TopicPaymentCompleted, err)
+				return
+			}
 			handler.HandlePaymentCompleted(ctx, ev)
 
 		// Events that consume orchestrator from gateway service
 		case domain.TopicGatewayAuthorized:
 			var ev domain.GatewayAuthorizedEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal GatewayAuthorizedEvent for %s: %v", domain.TopicGatewayAuthorized, err)
+				return
+			}
 			handler.HandleGatewayAuthorized(ctx, ev)
 		case domain.TopicGatewayAuthorizationFailed:
 			var ev domain.GatewayAuthorizationFailedEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal GatewayAuthorizationFailedEvent for %s: %v", domain.TopicGatewayAuthorizationFailed, err)
+				return
+			}
 			handler.HandleGatewayAuthorizationFailed(ctx, ev)
 
 		// Events that consume orchestrator from wallet service
 		case domain.TopicWalletFunds:
 			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal WalletCommandEvent for %s: %v", domain.TopicWalletFunds, err)
+				return
+			}
 			handler.HandleFundsHeld(ctx, ev)
 		case domain.TopicWalletDebitFunds:
 			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal WalletCommandEvent for %s: %v", domain.TopicWalletDebitFunds, err)
+				return
+			}
 			handler.HandleFundsDebited(ctx, ev)
 		case domain.TopicWalletHoldFundsFailed:
 			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal WalletCommandEvent for %s: %v", domain.TopicWalletHoldFundsFailed, err)
+				return
+			}
 			handler.HandleFundsHoldFailed(ctx, ev)
 		case domain.TopicWalletFundsReleased:
 			var ev domain.WalletCommandEvent
-			json.Unmarshal(msg, &ev)
+			if err := json.Unmarshal(msg, &ev); err != nil {
+				log.Printf("ERROR: could not unmarshal WalletCommandEvent for %s: %v", domain.TopicWalletFundsReleased, err)
+				return
+			}
 			handler.HandleFundsReleased(ctx, ev)
 		}
 	}
 
 	// Subscribe the dispatcher to all topics the orchestrator listens to.
-	log.Printf("Subscribing to topic: %s", domain.TopicPaymentCreated)
 	bus.Subscribe(domain.TopicPaymentCreated, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicOrchestratorWallet)
-	bus.Subscribe(domain.TopicOrchestratorWallet, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicGatewayAuthorized)
 	bus.Subscribe(domain.TopicGatewayAuthorized, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicGatewayAuthorizationFailed)
 	bus.Subscribe(domain.TopicGatewayAuthorizationFailed, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicPaymentCompleted)
 	bus.Subscribe(domain.TopicPaymentCompleted, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicWalletFunds)
 	bus.Subscribe(domain.TopicWalletFunds, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicWalletDebitFunds)
 	bus.Subscribe(domain.TopicWalletDebitFunds, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicWalletHoldFundsFailed)
 	bus.Subscribe(domain.TopicWalletHoldFundsFailed, dispatcher)
-	log.Printf("Subscribing to topic: %s", domain.TopicWalletFundsReleased)
 	bus.Subscribe(domain.TopicWalletFundsReleased, dispatcher)
 }
