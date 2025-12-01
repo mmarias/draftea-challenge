@@ -17,7 +17,7 @@ func Setup(bus infraEventbus.Client) {
 	updateStatusCmd := orchestrator.NewUpdatePaymentStatusCommand(pub)
 	notifyUserCmd := orchestrator.NewNotifyUserCommand(pub)
 
-	sagaHandler := eventbus.NewPaymentSagaHandler(
+	sagaHandler := eventbus.NewOrchestratorSagaHandler(
 		holdFundsCmd,
 		releaseFundsCmd,
 		debitFundsCmd,

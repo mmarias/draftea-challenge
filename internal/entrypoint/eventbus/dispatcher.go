@@ -9,7 +9,7 @@ import (
 	"github.com/mmarias/golearn/internal/infraestructure/eventbus"
 )
 
-func SetupSagaDispatcher(bus eventbus.Client, handler *PaymentSagaHandler) {
+func SetupSagaDispatcher(bus eventbus.Client, handler *OrchestratorSagaHandler) {
 	// The dispatcher is a single function that knows how to route events.
 	dispatcher := func(ctx context.Context, msg []byte) {
 		var genericEvent domain.CommandEvent
