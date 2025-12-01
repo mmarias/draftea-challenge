@@ -6,23 +6,21 @@ import (
 
 	orchestrator "github.com/mmarias/golearn/internal/app/orchestrator/v1"
 	"github.com/mmarias/golearn/internal/domain"
-	"github.com/mmarias/golearn/internal/infraestructure/publisher"
 )
 
-// PaymentSagaHandler holds all the commands needed to orchestrate the payment saga.
+// OrchestratorSagaHandler holds all the commands needed to orchestrate the payment saga.
 // It acts as the brain of the saga, with each method handling a specific event.
-type PaymentSagaHandler struct {
+type OrchestratorSagaHandler struct {
 	holdFundsCmd    orchestrator.HoldFundsCommand
 	releaseFundsCmd orchestrator.ReleaseFundsCommand
 	debitFundsCmd   orchestrator.DebitFundsCommand
 	authorizeCmd    orchestrator.AuthorizeGatewayCommand
 	updateStatusCmd orchestrator.UpdatePaymentStatusCommand
 	notifyUserCmd   orchestrator.NotifyUserCommand
-	publisher       publisher.Client
 }
 
-// NewPaymentSagaHandler creates a new handler with all its dependencies.
-func NewPaymentSagaHandler(
+// NewOrchestratorSagaHandler creates a new handler with all its dependencies.
+func NewOrchestratorSagaHandler(
 	holdFundsCmd orchestrator.HoldFundsCommand,
 	releaseFundsCmd orchestrator.ReleaseFundsCommand,
 	debitFundsCmd orchestrator.DebitFundsCommand,
@@ -30,8 +28,8 @@ func NewPaymentSagaHandler(
 	updateStatusCmd orchestrator.UpdatePaymentStatusCommand,
 	notifyUserCmd orchestrator.NotifyUserCommand,
 
-) *PaymentSagaHandler {
-	return &PaymentSagaHandler{
+) *OrchestratorSagaHandler {
+	return &OrchestratorSagaHandler{
 		holdFundsCmd:    holdFundsCmd,
 		releaseFundsCmd: releaseFundsCmd,
 		debitFundsCmd:   debitFundsCmd,
@@ -41,12 +39,9 @@ func NewPaymentSagaHandler(
 	}
 }
 
-// NOTE: In a real implementation, a main consumer (e.g., Kafka consumer) would receive a message,
-// unmarshal it, identify the event type, and call the corresponding method from this handler.
-
 // HandlePaymentCreated is triggered by a `payment.created` event from the Payment Service.
 // It starts the saga by attempting to hold funds in the user's wallet.
-func (h *PaymentSagaHandler) HandlePaymentCreated(ctx context.Context, event domain.PaymentUpdateStatusEvent) error {
+func (h *OrchestratorSagaHandler) HandlePaymentCreated(ctx context.Context, event domain.PaymentUpdateStatusEvent) error {
 	log.Printf("Handling payment.created for PaymentID: %s. Attempting to hold funds.", event.PaymentID)
 	// Here you would add logic to handle errors and trigger compensation (though this is the happy path).
 	// For this example, we don't have the other payment fields, so we'll use dummy values.
@@ -55,7 +50,7 @@ func (h *PaymentSagaHandler) HandlePaymentCreated(ctx context.Context, event dom
 
 // HandleFundsHeld is triggered by a `wallet.hold_funds` event from the Wallet Service.
 // It continues the saga by requesting payment authorization from the payment gateway.
-func (h *PaymentSagaHandler) HandleFundsHeld(ctx context.Context, event domain.WalletCommandEvent) error {
+func (h *OrchestratorSagaHandler) HandleFundsHeld(ctx context.Context, event domain.WalletCommandEvent) error {
 	log.Printf("Handling wallet.hold_funds for PaymentID: %s. Attempting to authorize with gateway.", event.PaymentID)
 	// In a real scenario, you would get the token from the original payment.created event,
 	// likely by storing saga state in a database (e.g., Redis, PostgreSQL).
@@ -65,14 +60,14 @@ func (h *PaymentSagaHandler) HandleFundsHeld(ctx context.Context, event domain.W
 
 // HandleGatewayAuthorized is triggered by a `gateway.authorized` event from the Payment Gateway.
 // It proceeds to debit the previously held funds.
-func (h *PaymentSagaHandler) HandleGatewayAuthorized(ctx context.Context, event domain.GatewayAuthorizedEvent) error {
+func (h *OrchestratorSagaHandler) HandleGatewayAuthorized(ctx context.Context, event domain.GatewayAuthorizedEvent) error {
 	log.Printf("Handling gateway.authorized for PaymentID: %s. Attempting to debit funds.", event.PaymentID)
 	return h.debitFundsCmd.Debit(ctx, event.PaymentID, event.WalletID, event.Amount, event.Currency)
 }
 
 // HandleFundsDebited is triggered by a `wallet.debit_funds` event from the Wallet Service.
 // This is the final step of the happy path. It marks the payment as complete and notifies the user.
-func (h *PaymentSagaHandler) HandleFundsDebited(ctx context.Context, event domain.WalletCommandEvent) error {
+func (h *OrchestratorSagaHandler) HandleFundsDebited(ctx context.Context, event domain.WalletCommandEvent) error {
 	log.Printf("Handling wallet.debit_funds for PaymentID: %s. Finalizing payment.", event.PaymentID)
 
 	// Update payment status to COMPLETED
@@ -87,7 +82,7 @@ func (h *PaymentSagaHandler) HandleFundsDebited(ctx context.Context, event domai
 	return nil
 }
 
-func (h *PaymentSagaHandler) HandlePaymentCompleted(ctx context.Context, event domain.PaymentUpdateStatusEvent) error {
+func (h *OrchestratorSagaHandler) HandlePaymentCompleted(ctx context.Context, event domain.PaymentUpdateStatusEvent) error {
 	log.Printf("Handling payment.completed for PaymentID: %s. Notifying user and sending metrics.", event.PaymentID)
 	// Notify the user of the successful payment
 	err := h.notifyUserCmd.Notify(ctx, event.PaymentID, domain.PaymentSuccess)
@@ -103,7 +98,7 @@ func (h *PaymentSagaHandler) HandlePaymentCompleted(ctx context.Context, event d
 
 // HandleFundsHoldFailed is triggered by a `wallet.hold_funds_failed` event.
 // It terminates the saga, updates the payment status to FAILED, and notifies the user.
-func (h *PaymentSagaHandler) HandleFundsHoldFailed(ctx context.Context, event domain.WalletCommandEvent) error {
+func (h *OrchestratorSagaHandler) HandleFundsHoldFailed(ctx context.Context, event domain.WalletCommandEvent) error {
 	log.Printf("Handling wallet.hold_funds_failed for PaymentID: %s. Terminating saga.", event.PaymentID)
 
 	// Update payment status to FAILED
@@ -129,7 +124,7 @@ func (h *PaymentSagaHandler) HandleFundsHoldFailed(ctx context.Context, event do
 
 // HandleGatewayAuthorizationFailed is triggered by a `gateway.authorization_failed` event.
 // It initiates the compensation process by releasing the previously held funds.
-func (h *PaymentSagaHandler) HandleGatewayAuthorizationFailed(ctx context.Context, event domain.GatewayAuthorizationFailedEvent) error {
+func (h *OrchestratorSagaHandler) HandleGatewayAuthorizationFailed(ctx context.Context, event domain.GatewayAuthorizationFailedEvent) error {
 	log.Printf("Handling gateway.authorization_failed for PaymentID: %s. Releasing funds.", event.PaymentID)
 	// Trigger compensation: release the funds that were held.
 	return h.releaseFundsCmd.Release(ctx, event.PaymentID, event.WalletID, event.Amount, event.Currency)
@@ -137,7 +132,7 @@ func (h *PaymentSagaHandler) HandleGatewayAuthorizationFailed(ctx context.Contex
 
 // HandleFundsReleased is triggered by a `wallet.funds_released` event.
 // This is a terminal state for a failed saga. It marks the payment as FAILED and notifies the user.
-func (h *PaymentSagaHandler) HandleFundsReleased(ctx context.Context, event domain.WalletCommandEvent) error {
+func (h *OrchestratorSagaHandler) HandleFundsReleased(ctx context.Context, event domain.WalletCommandEvent) error {
 	log.Printf("Handling wallet.funds_released for PaymentID: %s. Terminating saga.", event.PaymentID)
 
 	// Update payment status to FAILED
